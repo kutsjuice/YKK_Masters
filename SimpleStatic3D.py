@@ -95,7 +95,7 @@ class Vol3D4V():
         kf1 = self.mu/(1-self.mu)
         kf2 = (1-2*self.mu)/(2*(1-self.mu))
         kf3 = self.E*(1-self.mu)/(1+self.mu)/(1-2*self.mu)
-        
+        #какойто комментарий
         self.mD = np.array ([[1,    kf1,    kf1,  0,  0,  0],
                              [kf1,  1,      kf1,  0,  0,  0],
                              [kf1,  kf1,    1  ,  0,  0,  0],
