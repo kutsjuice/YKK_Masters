@@ -285,9 +285,7 @@ def createXML(body, delta):
     UnstructuredGrid = ET.Element('UnstructuredGrid')
     Piece = ET.Element('Piece', NumberOfPoints= str(len(body.vertices)) , NumberOfCells=str(len(body.finels)))
     
-    PointsData = ET.Element('PointData', Vectors='delta')
-    string = ''
-    
+    PointsData = ET.Element('PointData', Scalars = 'fixed', Vectors='delta')
     string = ''
     for i in range(int(len(delta)/3)):
         stringappend = str(delta[i*3+0]) + ' ' + str(delta[i*3+1]) + ' ' + str(delta[i*3+2]) + ' '
@@ -295,7 +293,32 @@ def createXML(body, delta):
     DataArrayDel = ET.Element('DataArray', Name="delta", NumberOfComponents = "3", type="Float32", format="ascii")
     DataArrayDel.text = string
     PointsData.append(DataArrayDel)
-
+    stringX = ''
+    stringY = ''
+    stringZ = ''
+    for vert in body.vertices:
+        if vert.fixedX == True:
+            stringX += str(1) + ' '
+        else:
+            stringX += str(0) + ' '
+        if vert.fixedY == True:
+            stringY += str(1) + ' '
+        else:
+            stringY += str(0) + ' '
+        if vert.fixedZ == True:
+            stringZ += str(1) + ' '
+        else:
+            stringZ += str(0) + ' '
+    DataArrayFixedX = ET.Element('DataArray', Name="fixedX", type="Float32", format="ascii")
+    DataArrayFixedX.text = stringX
+    PointsData.append(DataArrayFixedX)
+    DataArrayFixedY = ET.Element('DataArray', Name="fixedY", type="Float32", format="ascii")
+    DataArrayFixedY.text = stringY
+    PointsData.append(DataArrayFixedY)
+    DataArrayFixedZ = ET.Element('DataArray', Name="fixedZ", type="Float32", format="ascii")
+    DataArrayFixedZ.text = stringZ
+    PointsData.append(DataArrayFixedZ)
+    
     Points = ET.Element('Points')
     DataArray = ET.Element('DataArray', NumberOfComponents='3', type ='Float32', format='ascii')
     string=''
