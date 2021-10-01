@@ -11,6 +11,7 @@ import scipy.linalg as la
 import time
 import matplotlib.pyplot as plt
 
+
 # import matplotlib.pyplot as plt
 
 start_time = time.time()
@@ -376,8 +377,14 @@ def main():
 
     body.makeMatrices()
     print("%s seconds create mK" % (time.time() - start_time))
+    
+    w, v = la.eig(body.mK@la.inv(body.mM)) #w - квадраты собственных частот; v - матрица собственных форм (каждая форма - столбец матрицы)
+    w = np.sqrt(w)
+    
+    
 
     delta = np.linalg.solve(body.mK, body.vF)
+    delta = v[:,-2]
     print("%s seconds solve problem" % (time.time() - start_time))
 
     createXML(body,delta)
@@ -385,7 +392,7 @@ def main():
     
     # print(body.mK)
     print(body.mM)
-    plt.imshow(body.mK)
+    plt.imshow(np.cbrt(np.cbrt(body.mK)))
     plt.colorbar()
 
 
