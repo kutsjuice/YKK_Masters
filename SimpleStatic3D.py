@@ -9,6 +9,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 import scipy.linalg as la
 import time
+import matplotlib.pyplot as plt
 
 # import matplotlib.pyplot as plt
 
@@ -49,10 +50,11 @@ class Vol3D4V():
         
         vs = self.vertices
         
-        V6 = la.det(np.array([[1, vi.x, vi.y, vi.z],
+        V6 = abs(la.det(np.array([[1, vi.x, vi.y, vi.z],
                               [1, vj.x, vj.y, vj.z],
                               [1, vm.x, vm.y, vm.z],
-                              [1, vp.x, vp.y, vp.z]]))
+                              [1, vp.x, vp.y, vp.z]])))
+        # print(V6)
         a = np.zeros(4)
         b = np.zeros(4)
         c = np.zeros(4)
@@ -380,6 +382,11 @@ def main():
 
     createXML(body,delta)
     print("%s seconds create XML" % (time.time() - start_time))
+    
+    # print(body.mK)
+    print(body.mM)
+    plt.imshow(body.mK)
+    plt.colorbar()
 
 
 
