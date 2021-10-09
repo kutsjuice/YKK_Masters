@@ -51,10 +51,10 @@ class Vol3D4V():
         
         vs = self.vertices
         
-        V6 = abs(la.det(np.array([[1, vi.x, vi.y, vi.z],
+        V6 = la.det(np.array([[1, vi.x, vi.y, vi.z],
                               [1, vj.x, vj.y, vj.z],
                               [1, vm.x, vm.y, vm.z],
-                              [1, vp.x, vp.y, vp.z]])))
+                              [1, vp.x, vp.y, vp.z]]))
         # print(V6)
         a = np.zeros(4)
         b = np.zeros(4)
@@ -62,6 +62,22 @@ class Vol3D4V():
         d = np.zeros(4)
         
         self.mB = np.zeros((6,12))
+        # self.mK = np.zeros((12,12))
+        
+        kf1 = self.mu/(1-self.mu)
+        kf2 = (1-2*self.mu)/(2*(1-self.mu))
+        kf3 = self.E*(1-self.mu)/(1+self.mu)/(1-2*self.mu)
+        #какойто комментарий
+        self.mD = np.array ([[1,    kf1,    kf1,  0,  0,  0],
+                             [kf1,  1,      kf1,  0,  0,  0],
+                             [kf1,  kf1,    1  ,  0,  0,  0],
+                             [0,    0,      0,    kf2,0,  0],
+                             [0,    0,      0,    0,  kf2,0],
+                             [0,    0,      0,    0,  0,  kf2]])
+        
+        self.mD = self.mD * kf3
+        
+        
         
         for i in range(4):
             
@@ -69,9 +85,11 @@ class Vol3D4V():
             m = (i+2) % 4
             p = (i+3) % 4
             
-            a[i] = la.det(np.array([[vs[j].x, vs[j].y, vs[j].z],
-                                    [vs[m].x, vs[m].y, vs[m].z],
-                                    [vs[p].x, vs[p].y, vs[p].z]]))
+            print(i, j, m, p)
+            
+            # a[i] = la.det(np.array([[vs[j].x, vs[j].y, vs[j].z],
+            #                         [vs[m].x, vs[m].y, vs[m].z],
+            #                         [vs[p].x, vs[p].y, vs[p].z]]))
             
             b[i] = - la.det(np.array([[1, vs[j].y, vs[j].z],
                                       [1, vs[m].y, vs[m].z],
@@ -92,21 +110,13 @@ class Vol3D4V():
                           [c[i],    b[i],   0],
                           [0,       d[i],   c[i]],
                           [d[i],    0,      b[i]]])
-        
+            
         self.mB = self.mB/V6
-        
-        kf1 = self.mu/(1-self.mu)
-        kf2 = (1-2*self.mu)/(2*(1-self.mu))
-        kf3 = self.E*(1-self.mu)/(1+self.mu)/(1-2*self.mu)
-        #какойто комментарий
-        self.mD = np.array ([[1,    kf1,    kf1,  0,  0,  0],
-                             [kf1,  1,      kf1,  0,  0,  0],
-                             [kf1,  kf1,    1  ,  0,  0,  0],
-                             [0,    0,      0,    kf2,0,  0],
-                             [0,    0,      0,    0,  kf2,0],
-                             [0,    0,      0,    0,  0,  kf2]])
-        
-        self.mD = self.mD * kf3
+            
+        # for i in range(4):
+        #     for j in range(4):
+        #         self.mK[3*i: 3*i+3, 3*j: 3*j+3] = self.mB[:, 3*i: 3*i+3].T @ self.mD @ self.mB[:, 3*j: 3*j+3] * V6 / 6
+            
         
         self.mK = self.mB.T @ self.mD @ self.mB * V6 / 6
         
@@ -132,8 +142,8 @@ class Vol3D4V():
             iG = self.indices[i] #номер направления в глобальной матрице жесткости
             for j in range(self.indices.size):
                 jG = self.indices[j] #номер направления в глобальной матрице жесткости
-                globMk[iG, jG] += self.mK[i, j]
-                globMm[iG, jG] += self.mM[i, j]
+                self.body.mK[iG, jG] += self.mK[i, j]
+                self.body.mM[iG, jG] += self.mM[i, j]
 
     
 
@@ -168,8 +178,11 @@ class Body():
         nH = int(np.ceil(height/el_size))
         
         x_cords = np.linspace(0, length, nL+1)
+        # x_cords[1:] = x_cords[1:] + 1.5*np.random.randn(x_cords.shape[0]-1)
         y_cords = np.linspace(0, height, nH+1)
+        # y_cords[1:] = y_cords[1:] + 1.5*np.random.randn(y_cords.shape[0]-1)
         z_cords = np.linspace(0, width, nW+1)
+        # y_cords[1:] = y_cords[1:] + 1.5*np.random.randn(y_cords.shape[0]-1)
         xS = x_cords[1] - x_cords[0]
         yS = y_cords[1] - y_cords[0]
         zS = z_cords[1] - z_cords[0]
@@ -177,50 +190,50 @@ class Body():
 
         dF = self.force/(nW+1)/(nH+1)
         
-        for x in x_cords[:-1]:                
-            for y in y_cords[:-1]:
-                for z in z_cords[:-1]:
-                    v1 = self.addVertex(x, y, z)
-                    v2 = self.addVertex(x+xS, y, z)
-                    v3 = self.addVertex(x+xS, y, z+zS)
-                    v4 = self.addVertex(x, y, z+zS)
+        for (x1,x2) in zip(x_cords[:-1],x_cords[1:]):                
+            for (y1,y2) in zip(y_cords[:-1],y_cords[1:]):
+                for (z1,z2) in zip(z_cords[:-1],z_cords[1:]):
+                    v1 = self.addVertex(x1, y1, z1)
+                    v2 = self.addVertex(x2, y1, z1)
+                    v3 = self.addVertex(x2, y1, z2)
+                    v4 = self.addVertex(x1, y1, z2)
                     
                     
-                    v5 = self.addVertex(x, y + yS, z)
-                    v6 = self.addVertex(x+xS, y + yS, z)
-                    v7 = self.addVertex(x+xS, y + yS, z+zS)
-                    v8 = self.addVertex(x, y + yS, z+zS)
+                    v5 = self.addVertex(x1, y2, z1)
+                    v6 = self.addVertex(x2, y2, z1)
+                    v7 = self.addVertex(x2, y2, z2)
+                    v8 = self.addVertex(x1, y2, z2)
                     
-                    if x == 0:
-                        v1.fixedX = True
-                        v1.fixedY = True
-                        v1.fixedZ = True
+                    # if x1 == 0:
+                    #     v1.fixedX = True
+                    #     v1.fixedY = True
+                    #     v1.fixedZ = True
                         
-                        v4.fixedX = True
-                        v4.fixedY = True
-                        v4.fixedZ = True
+                    #     v4.fixedX = True
+                    #     v4.fixedY = True
+                    #     v4.fixedZ = True
                         
-                        v5.fixedX = True
-                        v5.fixedY = True
-                        v5.fixedZ = True
+                    #     v5.fixedX = True
+                    #     v5.fixedY = True
+                    #     v5.fixedZ = True
                         
-                        v8.fixedX = True
-                        v8.fixedY = True
-                        v8.fixedZ = True
+                    #     v8.fixedX = True
+                    #     v8.fixedY = True
+                    #     v8.fixedZ = True
                         
-                    elif x== length-xS:
-                        v2.forceZ = dF
-                        v3.forceZ = dF 
-                        v6.forceZ = dF
-                        v7.forceZ = dF
+                    if abs(x1 - length/2) < 2:
+                        v2.forceX = dF
+                        v3.forceX = dF 
+                        v6.forceX = dF
+                        v7.forceX = dF
                     
-                    self.addFinel(v1, v2, v4, v8)
-                    self.addFinel(v2, v3, v4, v7)
-                    self.addFinel(v2, v7, v4, v8)
+                    self.addFinel(v5, v1, v6, v4)
+                    self.addFinel(v8, v5, v6, v4)
+                    self.addFinel(v8, v6, v7, v4)
                     
-                    self.addFinel(v1, v6, v8, v5)
-                    self.addFinel(v1, v2, v8, v6)
-                    self.addFinel(v2, v7, v8, v6)
+                    self.addFinel(v1, v2, v6, v7)
+                    self.addFinel(v1, v3, v2, v7)
+                    self.addFinel(v1, v4, v3, v7)
                         
                     
                 
@@ -235,6 +248,7 @@ class Body():
     def addVertex(self, x, y, z):
         for v in self.vertices:
             if np.linalg.norm(np.array([v.x - x, v.y - y, v.z - z])) < EPS:
+                # print("exist")
                 return v
         
         v = Vertex(x, y, z, len(self.vertices))
@@ -254,13 +268,13 @@ class Body():
             
         for vert in self.vertices:
             if vert.fixedX:
-                self.mK[vert.dirs[0],vert.dirs[0]] +=1e9
+                self.mK[vert.dirs[0],vert.dirs[0]] = 1e10
                 
             if vert.fixedY:
-                self.mK[vert.dirs[1],vert.dirs[1]] +=1e9
+                self.mK[vert.dirs[1],vert.dirs[1]] = 1e10
                 
             if vert.fixedZ:
-                self.mK[vert.dirs[2],vert.dirs[2]] +=1e9
+                self.mK[vert.dirs[2],vert.dirs[2]] = 1e10
             
             self.vF[vert.dirs[0]] = vert.forceX
             self.vF[vert.dirs[1]] = vert.forceY
@@ -299,16 +313,30 @@ def createXML(body, delta):
     stringX = ''
     stringY = ''
     stringZ = ''
+    # for vert in body.vertices:
+    #     if vert.fixedX == True:
+    #         stringX += str(1) + ' '
+    #     else:
+    #         stringX += str(0) + ' '
+    #     if vert.fixedY == True:
+    #         stringY += str(1) + ' '
+    #     else:
+    #         stringY += str(0) + ' '
+    #     if vert.fixedZ == True:
+    #         stringZ += str(1) + ' '
+    #     else:
+    #         stringZ += str(0) + ' '
+            
     for vert in body.vertices:
-        if vert.fixedX == True:
+        if abs(vert.forceX) > 0:
             stringX += str(1) + ' '
         else:
             stringX += str(0) + ' '
-        if vert.fixedY == True:
+        if abs(vert.forceY) > 0:
             stringY += str(1) + ' '
         else:
             stringY += str(0) + ' '
-        if vert.fixedZ == True:
+        if abs(vert.forceZ) > 0:
             stringZ += str(1) + ' '
         else:
             stringZ += str(0) + ' '
@@ -328,7 +356,7 @@ def createXML(body, delta):
     i = 0
     for vert in body.vertices:
         string +=str(vert.x)+' '+str(vert.y)+' '+str(vert.z)+ ' '
-        i +=1
+        # print(vert.ind)
     DataArray.text = string
     Points.append(DataArray)
 
@@ -372,27 +400,29 @@ def createXML(body, delta):
 
 def main():
     body = Body( e = 2.1e5, mu = 0.3, ro = 7900)
-    body.makeMesh(length = 300,width = 50, height = 50, el_size = 20, force = 5000)
+    body.makeMesh(length = 150,width = 50, height = 50, el_size = 20, force = 5000)
     print("%s seconds create mesh" % (time.time() - start_time))
 
     body.makeMatrices()
     print("%s seconds create mK" % (time.time() - start_time))
     
-    w, v = la.eig(body.mK@la.inv(body.mM)) #w - квадраты собственных частот; v - матрица собственных форм (каждая форма - столбец матрицы)
-    w = np.sqrt(w)
+    # w, v = la.eig(body.mK@la.inv(body.mM)) #w - квадраты собственных частот; v - матрица собственных форм (каждая форма - столбец матрицы)
+    # w = np.sqrt(w)
     
     
 
     delta = np.linalg.solve(body.mK, body.vF)
-    delta = v[:,-2]
+    print(np.linalg.matrix_rank(body.mK))
+    # delta = v[:,-2]
     print("%s seconds solve problem" % (time.time() - start_time))
 
     createXML(body,delta)
     print("%s seconds create XML" % (time.time() - start_time))
     
-    # print(body.mK)
-    print(body.mM)
-    plt.imshow(np.cbrt(np.cbrt(body.mK)))
+    print(body.mK.shape)
+    # print(body.mM)
+    plt.imshow(body.mK)
+    # plt.spy(body.mK)
     plt.colorbar()
 
 
