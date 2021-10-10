@@ -281,21 +281,6 @@ class Body():
             self.vF[vert.dirs[2]] = vert.forceZ
 
 
-def indent(elem, level=0):
-    i = "\n" + level*"  "
-    if len(elem):
-        if not elem.text or not elem.text.strip():
-            elem.text = i + "  "
-        if not elem.tail or not elem.tail.strip():
-            elem.tail = i
-        for elem in elem:
-            indent(elem, level+1)
-        if not elem.tail or not elem.tail.strip():
-            elem.tail = i
-    else:
-        if level and (not elem.tail or not elem.tail.strip()):
-            elem.tail = i
-
 class XML():
 
     def __init__(self, fileName, fileType, body, delta):
@@ -439,7 +424,7 @@ def main():
     print("%s seconds solve problem" % (time.time() - start_time))
 
 
-    XML(fileName = 'test', fileType = 'vtu',body = body, delta = delta)
+    myXML = XML(fileName = 'test', fileType = 'vtu',body = body, delta = delta)
     print("%s seconds create XML" % (time.time() - start_time))
     
     print(body.mK.shape)
