@@ -85,7 +85,7 @@ class Vol3D4V():
             m = (i+2) % 4
             p = (i+3) % 4
             
-            print(i, j, m, p)
+            # print(i, j, m, p)
             
             # a[i] = la.det(np.array([[vs[j].x, vs[j].y, vs[j].z],
             #                         [vs[m].x, vs[m].y, vs[m].z],
@@ -137,7 +137,7 @@ class Vol3D4V():
         self.mM = self.ro*V6/6/20*self.mM
 
 
-    def addSelf(self, globMk, globMm):
+    def addSelf(self):
         for i in range(self.indices.size):
             iG = self.indices[i] #номер направления в глобальной матрице жесткости
             for j in range(self.indices.size):
@@ -264,7 +264,7 @@ class Body():
         self.mM = np.zeros([N,N])
         
         for el in self.finels:
-            el.addSelf(self.mK, self.mM)
+            el.addSelf()
             
         for vert in self.vertices:
             if vert.fixedX:
@@ -296,105 +296,127 @@ def indent(elem, level=0):
         if level and (not elem.tail or not elem.tail.strip()):
             elem.tail = i
 
+class XML():
 
-def createXML(body, delta):
-    VTKfile = ET.Element('VTKFile', type = 'UnstructuredGrid', version='0.1', byte_order='LittleEndian')
-    UnstructuredGrid = ET.Element('UnstructuredGrid')
-    Piece = ET.Element('Piece', NumberOfPoints= str(len(body.vertices)) , NumberOfCells=str(len(body.finels)))
+    def __init__(self, fileName, fileType, body, delta):
+        self.body = body
+        self.delta = delta
+        self.fileName = fileName + '.' + fileType
+        self.createXML()
+
+
+    def createXML(self):
+        etree = ET.ElementTree(self.VTK())
+        myfile = open(self.fileName, 'wb')
+        etree.write(myfile, encoding='utf-8', xml_declaration=True)
+        myfile.close
+
+
+    def VTK(self, Head = 'VTKFile', type = 'UnstructuredGrid', version ='0.1', byte_order='LittleEndian'):
+        VTKfile = ET.Element( Head, type = type, version = version, byte_order= byte_order)
+        VTKfile.append(self.UnstructuredGrid())
+        ET.indent(VTKfile)
+        return VTKfile
     
-    PointsData = ET.Element('PointData', Scalars = 'fixed', Vectors='delta')
-    string = ''
-    for i in range(int(len(delta)/3)):
-        stringappend = str(delta[i*3+0]) + ' ' + str(delta[i*3+1]) + ' ' + str(delta[i*3+2]) + ' '
-        string += stringappend
-    DataArrayDel = ET.Element('DataArray', Name="delta", NumberOfComponents = "3", type="Float32", format="ascii")
-    DataArrayDel.text = string
-    PointsData.append(DataArrayDel)
-    stringX = ''
-    stringY = ''
-    stringZ = ''
-    # for vert in body.vertices:
-    #     if vert.fixedX == True:
-    #         stringX += str(1) + ' '
-    #     else:
-    #         stringX += str(0) + ' '
-    #     if vert.fixedY == True:
-    #         stringY += str(1) + ' '
-    #     else:
-    #         stringY += str(0) + ' '
-    #     if vert.fixedZ == True:
-    #         stringZ += str(1) + ' '
-    #     else:
-    #         stringZ += str(0) + ' '
-            
-    for vert in body.vertices:
-        if abs(vert.forceX) > 0:
-            stringX += str(1) + ' '
-        else:
-            stringX += str(0) + ' '
-        if abs(vert.forceY) > 0:
-            stringY += str(1) + ' '
-        else:
-            stringY += str(0) + ' '
-        if abs(vert.forceZ) > 0:
-            stringZ += str(1) + ' '
-        else:
-            stringZ += str(0) + ' '
-    DataArrayFixedX = ET.Element('DataArray', Name="fixedX", type="Float32", format="ascii")
-    DataArrayFixedX.text = stringX
-    PointsData.append(DataArrayFixedX)
-    DataArrayFixedY = ET.Element('DataArray', Name="fixedY", type="Float32", format="ascii")
-    DataArrayFixedY.text = stringY
-    PointsData.append(DataArrayFixedY)
-    DataArrayFixedZ = ET.Element('DataArray', Name="fixedZ", type="Float32", format="ascii")
-    DataArrayFixedZ.text = stringZ
-    PointsData.append(DataArrayFixedZ)
+    def UnstructuredGrid(self, Head = 'UnstructuredGrid'):
+        UnstructuredGrid = ET.Element(Head)
+        UnstructuredGrid.append(self.Piece(NumberOfPoints = str(len(self.body.vertices)), NumberOfCells = str(len(self.body.finels))))
+        return UnstructuredGrid
     
-    Points = ET.Element('Points')
-    DataArray = ET.Element('DataArray', NumberOfComponents='3', type ='Float32', format='ascii')
-    string=''
-    i = 0
-    for vert in body.vertices:
-        string +=str(vert.x)+' '+str(vert.y)+' '+str(vert.z)+ ' '
-        # print(vert.ind)
-    DataArray.text = string
-    Points.append(DataArray)
-
-    Cells = ET.Element('Cells')
-    DataArrayCon = ET.Element('DataArray', type = 'Int32', Name ='connectivity')
-    string = ''
-    for fin in body.finels:
-        string +=str(fin.vertices[0].ind)+ ' ' + str(fin.vertices[1].ind)+ ' ' + str(fin.vertices[2].ind)+ ' '+ str(fin.vertices[3].ind)+' '
-    DataArrayCon.text = string
-    Cells.append(DataArrayCon)
-
+    def Piece(self, Head = 'Piece', NumberOfPoints = None, NumberOfCells = None):
+        Piece = ET.Element(Head)
+        if NumberOfPoints != None:
+            Piece.set('NumberOfPoints', NumberOfPoints)
+        if NumberOfCells != None:
+            Piece.set('NumberOfCells', NumberOfCells)
+        Piece.append(self.Points())
+        Piece.append(self.PointData())
+        Piece.append(self.Cells())
+        return Piece
     
-    DataArrayOffsets = ET.Element('DataArray', type = 'Int32', Name ='offsets')
-    string = ''
-    for i in range(1,len(body.finels)+1):
-        string +=str(4*i)+' '
-    DataArrayOffsets.text = string
-    Cells.append(DataArrayOffsets)
-    DataArrayType = ET.Element('DataArray', type = 'Int32', Name ='types')
-    string = ''
-    for i in range(len(body.finels)):
-        string += '10 '
-    DataArrayType.text = string
-    Cells.append(DataArrayType)
+    def Points(self, Head = 'Points'):
+        Points = ET.Element(Head)
+        Points.append(self.DataArray(stringData = self.DataPoints(), NumberOfComponents="3", type="Float32", format="ascii"))
+        return Points
+    
+    def PointData(self, Head = 'PointData'):
+        PointsData = ET.Element(Head)
+        PointsData.append(self.DataArray(stringData = self.DataDelta(), Name="delta", NumberOfComponents="3", type="Float32", format="ascii"))
+        PointsData.append(self.DataArray(stringData = self.DataFixedXYZ()[0], Name="fixedX", type="Float32", format="ascii"))
+        PointsData.append(self.DataArray(stringData = self.DataFixedXYZ()[1], Name="fixedY", type="Float32", format="ascii"))
+        PointsData.append(self.DataArray(stringData = self.DataFixedXYZ()[2], Name="fixedZ", type="Float32", format="ascii"))
+        return PointsData
+    
+    def Cells(self, Head = 'Cells'):
+        Cells = ET.Element(Head)
+        Cells.append(self.DataArray(stringData = self.DataConnectivity(), Name='connectivity',type='Int32'))
+        Cells.append(self.DataArray(stringData = self.DataOffsets(), Name='offsets',type='Int32'))
+        Cells.append(self.DataArray(stringData = self.DataTypes(), Name='types',type='Int32'))
+        return Cells
 
-    Piece.append(Points)
-    Piece.append(PointsData)
-    Piece.append(Cells)
+    def DataArray(self, stringData, Head = 'DataArray', Name = None, NumberOfComponents = None, type = None, format = None):
+        DataArray = ET.Element(Head)
+        if Name!= None:
+            DataArray.set('Name', Name)
+        if NumberOfComponents!= None:
+            DataArray.set('NumberOfComponents', NumberOfComponents)
+        if type!= None:
+            DataArray.set('type', type)
+        if format!= None:
+            DataArray.set('format', format)
+        DataArray.text = stringData
+        return DataArray
+    
+    def DataPoints(self):
+        string=''
+        for vert in self.body.vertices:
+            string +=str(vert.x)+' '+str(vert.y)+' '+str(vert.z)+ ' '
+            # print(vert.ind)
+        return string
 
-    UnstructuredGrid.append(Piece)
-    VTKfile.append(UnstructuredGrid)
-    indent(VTKfile)
-    etree = ET.ElementTree(VTKfile)
-
-    myfile = open('test_1.vtu', 'wb')
-    etree.write(myfile, encoding='utf-8', xml_declaration=True)
-    myfile.close
-
+    def DataConnectivity(self):
+        string = ''
+        for fin in self.body.finels:
+            string +=str(fin.vertices[0].ind)+ ' ' + str(fin.vertices[1].ind)+ ' ' + str(fin.vertices[2].ind)+ ' '+ str(fin.vertices[3].ind)+' '
+        return string
+    
+    def DataOffsets(self):
+        string = ''
+        for i in range(1,len(self.body.finels)+1):
+            string +=str(4*i)+' '
+        return string
+    
+    def DataTypes(self):
+        string = ''
+        for i in range(len(self.body.finels)):
+            string += '10 '
+        return string
+    
+    def DataDelta(self):
+        string = ''
+        for i in range(int(len(self.delta)/3)):
+            stringappend = str(self.delta[i*3+0]) + ' ' + str(self.delta[i*3+1]) + ' ' + str(self.delta[i*3+2]) + ' '
+            string += stringappend
+        return string
+    
+    def DataFixedXYZ(self):
+        stringX = ''
+        stringY = ''
+        stringZ = ''
+        for vert in self.body.vertices:
+                if abs(vert.forceX) > 0:
+                    stringX += str(1) + ' '
+                else:
+                    stringX += str(0) + ' '
+                if abs(vert.forceY) > 0:
+                    stringY += str(1) + ' '
+                else:
+                    stringY += str(0) + ' '
+                if abs(vert.forceZ) > 0:
+                    stringZ += str(1) + ' '
+                else:
+                    stringZ += str(0) + ' '
+        return stringX, stringY, stringZ
 
 
 
@@ -416,7 +438,8 @@ def main():
     # delta = v[:,-2]
     print("%s seconds solve problem" % (time.time() - start_time))
 
-    createXML(body,delta)
+
+    XML(fileName = 'test', fileType = 'vtu',body = body, delta = delta)
     print("%s seconds create XML" % (time.time() - start_time))
     
     print(body.mK.shape)
