@@ -67,7 +67,7 @@ class Vol3D4V():
         kf1 = self.mu/(1-self.mu)
         kf2 = (1-2*self.mu)/(2*(1-self.mu))
         kf3 = self.E*(1-self.mu)/(1+self.mu)/(1-2*self.mu)
-        #какойто комментарий
+
         self.mD = np.array ([[1,    kf1,    kf1,  0,  0,  0],
                              [kf1,  1,      kf1,  0,  0,  0],
                              [kf1,  kf1,    1  ,  0,  0,  0],
@@ -149,111 +149,77 @@ class Vol3D4V():
 
 class Body():
     def __init__(self, e, mu, ro):
-        """
-        Parameters
-        ----------
-        e : TYPE
-            DESCRIPTION.
-        mu : TYPE
-            DESCRIPTION.
-        ro : TYPE
-            DESCRIPTION.
-
-        Returns
-        -------
-        None.
-
-        """
         self.vertices=[]
         self.finels=[]
         self.E = e
         self.mu = mu
         self.ro = ro
+
         
     def makeMesh(self, length, width, height, el_size, force):
         
         self.force = force
-        nL = int(np.ceil(length/el_size))
-        nW = int(np.ceil(width/el_size))
-        nH = int(np.ceil(height/el_size))
+        self.nL = int(np.ceil(length/el_size)) + 1 #колличество точек вдоль x
+        self.nW = int(np.ceil(width/el_size)) + 1 #колличество точек вдоль y
+        self.nH = int(np.ceil(height/el_size)) + 1 #колличество точек вдоль z
         
-        x_cords = np.linspace(0, length, nL+1)
-        # x_cords[1:] = x_cords[1:] + 1.5*np.random.randn(x_cords.shape[0]-1)
-        y_cords = np.linspace(0, height, nH+1)
-        # y_cords[1:] = y_cords[1:] + 1.5*np.random.randn(y_cords.shape[0]-1)
-        z_cords = np.linspace(0, width, nW+1)
-        # y_cords[1:] = y_cords[1:] + 1.5*np.random.randn(y_cords.shape[0]-1)
-        xS = x_cords[1] - x_cords[0]
-        yS = y_cords[1] - y_cords[0]
-        zS = z_cords[1] - z_cords[0]
+        self.x_cords = np.linspace(0, length, self.nL)
+        self.y_cords = np.linspace(0, height, self.nH)
+        self.z_cords = np.linspace(0, width, self.nW)
+
+        dF = self.force/(self.nW+1)/(self.nH+1)
+
+        self.createVertices()
+        self.createFinels()
+        self.createLoads()
+        # self.createFixes()
 
 
-        dF = self.force/(nW+1)/(nH+1)
-        
-        for (x1,x2) in zip(x_cords[:-1],x_cords[1:]):                
-            for (y1,y2) in zip(y_cords[:-1],y_cords[1:]):
-                for (z1,z2) in zip(z_cords[:-1],z_cords[1:]):
-                    v1 = self.addVertex(x1, y1, z1)
-                    v2 = self.addVertex(x2, y1, z1)
-                    v3 = self.addVertex(x2, y1, z2)
-                    v4 = self.addVertex(x1, y1, z2)
-                    
-                    
-                    v5 = self.addVertex(x1, y2, z1)
-                    v6 = self.addVertex(x2, y2, z1)
-                    v7 = self.addVertex(x2, y2, z2)
-                    v8 = self.addVertex(x1, y2, z2)
-                    
-                    # if x1 == 0:
-                    #     v1.fixedX = True
-                    #     v1.fixedY = True
-                    #     v1.fixedZ = True
-                        
-                    #     v4.fixedX = True
-                    #     v4.fixedY = True
-                    #     v4.fixedZ = True
-                        
-                    #     v5.fixedX = True
-                    #     v5.fixedY = True
-                    #     v5.fixedZ = True
-                        
-                    #     v8.fixedX = True
-                    #     v8.fixedY = True
-                    #     v8.fixedZ = True
-                        
-                    if abs(x1 - length/2) < 2:
-                        v2.forceX = dF
-                        v3.forceX = dF 
-                        v6.forceX = dF
-                        v7.forceX = dF
-                    
+    def createVertices(self):
+        for z in range(self.nH):
+            for y in range(self.nW):
+                for x in range(self.nL):
+                    ind = self.nW*z+self.nL*y+x
+                    self.vertices.append(Vertex(self.x_cords[x],self.y_cords[y],self.z_cords[z],len(self.vertices)))
+
+    def createFinels(self):
+        for z in range(self.nH - 1):
+            for y in range(self.nW - 1):
+                for x in range(self.nL - 1):
+
+                    v1 = self.neededVertex(0+x,0+y,0+z)
+                    v2 = self.neededVertex(0+x,1+y,0+z)
+                    v3 = self.neededVertex(1+x,1+y,0+z)
+                    v4 = self.neededVertex(1+x,0+y,0+z)
+
+                    v5 = self.neededVertex(0+x,0+y,1+z)
+                    v6 = self.neededVertex(0+x,1+y,1+z)
+                    v7 = self.neededVertex(1+x,1+y,1+z)
+                    v8 = self.neededVertex(1+x,0+y,1+z)
+
+
                     self.addFinel(v5, v1, v6, v4)
                     self.addFinel(v8, v5, v6, v4)
                     self.addFinel(v8, v6, v7, v4)
-                    
+
                     self.addFinel(v1, v2, v6, v7)
                     self.addFinel(v1, v3, v2, v7)
                     self.addFinel(v1, v4, v3, v7)
-                        
-                    
-                
-    
+
+    def neededVertex(self, x, y, z):
+        ind = self.nW*self.nL*z+self.nL*y+x
+        v = self.vertices[ind]
+        return v
 
     def addFinel(self, v1, v2, v3, v4):
         el = Vol3D4V(v1, v2, v3, v4, self)
         self.finels.append(el)
-        return el
-    
-    
-    def addVertex(self, x, y, z):
-        for v in self.vertices:
-            if np.linalg.norm(np.array([v.x - x, v.y - y, v.z - z])) < EPS:
-                # print("exist")
-                return v
-        
-        v = Vertex(x, y, z, len(self.vertices))
-        self.vertices.append(v)
-        return v
+
+    def createLoads(self):
+
+        pass
+
+
 
 
     def makeMatrices(self):
@@ -407,7 +373,10 @@ class XML():
 
 def main():
     body = Body( e = 2.1e5, mu = 0.3, ro = 7900)
-    body.makeMesh(length = 150,width = 50, height = 50, el_size = 20, force = 5000)
+    body.makeMesh(length = 2,width = 2, height = 2, el_size = 1, force = 5000)
+
+
+
     print("%s seconds create mesh" % (time.time() - start_time))
 
     body.makeMatrices()
@@ -419,19 +388,20 @@ def main():
     
 
     delta = np.linalg.solve(body.mK, body.vF)
-    print(np.linalg.matrix_rank(body.mK))
+    # print(np.linalg.matrix_rank(body.mK))
     # delta = v[:,-2]
     print("%s seconds solve problem" % (time.time() - start_time))
 
 
-    myXML = XML(fileName = 'test', fileType = 'vtu',body = body, delta = delta)
+    myXML = XML(fileName = 'mytest', fileType = 'vtu',body = body, delta = delta)
+
     print("%s seconds create XML" % (time.time() - start_time))
     
-    print(body.mK.shape)
-    # print(body.mM)
-    plt.imshow(body.mK)
-    # plt.spy(body.mK)
-    plt.colorbar()
+    # print(body.mK.shape)
+    # # # print(body.mM)
+    # # plt.imshow(body.mK)
+    # # # plt.spy(body.mK)
+    # # plt.colorbar()
 
 
 
